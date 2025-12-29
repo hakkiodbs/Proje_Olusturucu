@@ -12,14 +12,15 @@ COLOR_BG_MAIN = "#1e1e1e"
 COLOR_BG_HEADER = "#2d2d2d"
 COLOR_INPUT_BG = "#252526"
 COLOR_TEXT_FG = "#d4d4d4"
+COLOR_PLACEHOLDER = "#6e6e6e" # Silik yazı rengi
 
 COLOR_BTN_BG = "#007acc"
 COLOR_BTN_HOVER = "#0062a3"
 COLOR_CLOSE_BG = "#c42b1c"
 
-COLOR_LOG_SUCCESS = "#4EC9B0"  # Yeşil (Yeni oluşturulan)
-COLOR_LOG_EXIST = "#F44747"    # Kırmızı (Zaten var olan)
-COLOR_LOG_INFO = "#569cd6"     # Mavi (Bilgi)
+COLOR_LOG_SUCCESS = "#4EC9B0"
+COLOR_LOG_EXIST = "#F44747"
+COLOR_LOG_INFO = "#569cd6"
 
 COLOR_FOLDER_TAG = "#569cd6"
 COLOR_FILE_TAG = "#ce9178"
@@ -48,6 +49,20 @@ FILE_ICONS = {
 }
 DEFAULT_FILE_ICON = "📄"
 DEFAULT_FOLDER_ICON = "📁"
+
+# --- HAYALET YAZI (PLACEHOLDER) ---
+PLACEHOLDER_TEXT = """Buraya proje yapısını yazın veya yapıştırın...
+
+Örnek Kullanım:
+AnaKlasor
+    AltKlasor
+        dosya.txt
+
+Nasıl Kullanılır?
+1. Kategori ve Şablon seçerek başlayabilirsiniz.
+2. Kendiniz yazacaksanız; Alt klasör için TAB tuşunu kullanın.
+3. Yazdıktan sonra '🔨 Yapılandır' butonu ile görselleştirin.
+4. '🚀 PROJEYİ OLUŞTUR' butonu ile dosyaları yaratın."""
 
 # --- KATEGORİLİ ŞABLONLAR ---
 DEFAULT_PRESETS = {
@@ -97,7 +112,6 @@ DEFAULT_PRESETS = {
     }
 }
 
-# --- DOCKER ŞABLONLARI ---
 DOCKER_TEMPLATES = {
     "Dockerfile": """FROM python:3.9-slim
 WORKDIR /app
@@ -114,14 +128,12 @@ services:
     restart: always"""
 }
 
-# --- DOSYA İÇERİKLERİ ---
 TEMPLATES = {
     "main.py": "print('Proje Başlatıldı!')",
     "app.py": "from flask import Flask\napp = Flask(__name__)\n@app.route('/')\ndef home(): return 'Hello'\nif __name__=='__main__': app.run()",
     "README.md": "# Proje Dokümantasyonu"
 }
 
-# --- KAYIT PENCERESİ ---
 class SavePresetDialog(tk.Toplevel):
     def __init__(self, parent, categories):
         super().__init__(parent)
@@ -169,17 +181,18 @@ class App(tk.Tk):
         self.is_maximized = False
         self.pre_max_geometry = "1200x800+100+100"
         self._offsetx = 0; self._offsety = 0
-        
-        # Durum Değişkenleri
-        self.show_editor = True
-        self.show_explorer = True
-        self.show_logs = True
-        self.show_top_pane = True
-        self.accent_color = "#007acc" 
+        self.accent_color = "#007acc"
+        self.is_placeholder_active = False 
 
         self.all_presets = DEFAULT_PRESETS.copy()
         self.load_custom_presets_from_file()
         self.load_app_config() 
+        
+        # Panellerin durumunu takip etmek için değişkenler
+        self.show_editor = True
+        self.show_explorer = True
+        self.show_logs = True
+        self.show_top_pane = True
 
         self.setup_styles()
         self.setup_ui()
@@ -187,9 +200,35 @@ class App(tk.Tk):
         
         target = self.path_entry.get() if self.path_entry.get() else os.getcwd()
         self.refresh_file_viewer(target)
+        
+        # BAŞLANGIÇTA OTOMATİK ŞABLON YÜKLEMİYORUZ
+        # Sadece placeholder gösteriyoruz.
+        self.add_placeholder()
+
+    # --- PLACEHOLDER (HAYALET YAZI) MANTIĞI ---
+    def add_placeholder(self):
+        # Eğer içerik doluysa placeholder ekleme
+        if self.text_area.get("1.0", "end-1c").strip(): return
+        
+        self.text_area.delete("1.0", tk.END)
+        self.text_area.insert("1.0", PLACEHOLDER_TEXT)
+        self.text_area.config(fg=COLOR_PLACEHOLDER)
+        self.is_placeholder_active = True
+
+    def remove_placeholder(self, event=None):
+        if self.is_placeholder_active:
+            self.text_area.delete("1.0", tk.END)
+            self.text_area.config(fg=COLOR_TEXT_FG)
+            self.is_placeholder_active = False
+
+    def on_focus_out(self, event):
+        if not self.text_area.get("1.0", "end-1c").strip():
+            self.add_placeholder()
 
     # --- FORMATLAMA & EDİTÖR ---
     def format_structure_visuals(self):
+        if self.is_placeholder_active: return
+
         raw_text = self.text_area.get("1.0", tk.END)
         lines = [l for l in raw_text.split('\n') if l.strip()]
         formatted = []
@@ -211,25 +250,27 @@ class App(tk.Tk):
         self.highlight_syntax()
 
     def handle_tab(self, e): 
+        if self.is_placeholder_active: self.remove_placeholder(None)
         self.text_area.insert("insert", "    ")
         return "break"
     
     def handle_enter(self, e):
+        if self.is_placeholder_active: self.remove_placeholder(None)
         cur = self.text_area.get("insert linestart", "insert lineend")
         ind = re.match(r"^(\s*)", cur)
         self.text_area.insert("insert", "\n" + (ind.group(1) if ind else ""))
         self.text_area.see("insert")
         return "break"
 
-    # --- OLUŞTURMA MOTORU (GÜNCELLENDİ: "MEVCUT" KONTROLÜ EKLENDİ) ---
+    # --- OLUŞTURMA MOTORU ---
     def generate_structure(self):
+        if self.is_placeholder_active: return self.log_write("Yapı boş, lütfen proje yapısını girin!", "error")
+
         tree_text = self.text_area.get("1.0", tk.END).strip()
         base_path = self.path_entry.get()
         if not tree_text: return self.log_write("Yapı boş!", "error")
         
-        self.log_area.config(state="normal")
-        self.log_area.delete("1.0", tk.END)
-        self.log_area.config(state="disabled")
+        self.clear_logs() 
         self.log_write("İşlem Başladı...", "info")
         
         lines = tree_text.split('\n')
@@ -240,7 +281,7 @@ class App(tk.Tk):
             for line in lines:
                 if not line.strip(): continue
                 clean_line = line.replace('│', ' ').replace('├', ' ').replace('└', ' ').replace('─', ' ')
-                level = len(re.match(r'^(\s*)', clean_line).group(1)) // 4 # Her 4 boşluk 1 seviye
+                level = len(re.match(r'^(\s*)', clean_line).group(1)) // 4
                 name = re.sub(r'[│├└─\s\t]+', '', line).strip()
                 name = re.sub(r'[📁📂📄🐍🌐🎨📜⚙️📝🖼️🚀🐙🔒🗄️]', '', name).strip()
                 if not name: continue
@@ -249,25 +290,22 @@ class App(tk.Tk):
                 parent = path_stack[-1][1] if path_stack else base_path
                 full_path = os.path.join(parent, name)
                 
-                # --- YENİ EKLENEN KISIM: VAROLUŞ KONTROLÜ ---
                 if os.path.exists(full_path):
-                    self.log_write(f"[MEVCUT] {name}", "error") # Kırmızı yazar
-                    # Klasör mevcutsa bile içine dosya eklemek için stack'e al
+                    self.log_write(f"[MEVCUT] {name}", "error")
                     if not ("." in name): 
                         path_stack.append((level, full_path))
                 else:
-                    # YOKSA OLUŞTUR
                     if "." in name:
                         os.makedirs(os.path.dirname(full_path), exist_ok=True)
                         content = TEMPLATES.get(name, TEMPLATES.get(os.path.splitext(name)[1], ""))
                         content = content.replace("{PROJECT_NAME}", os.path.basename(base_path))
                         content = content.replace("{DATE}", datetime.datetime.now().strftime("%d.%m.%Y"))
                         with open(full_path, 'w', encoding='utf-8') as f: f.write(content)
-                        self.log_write(f"[DOSYA] {name}", "success") # Yeşil
+                        self.log_write(f"[DOSYA] {name}", "success")
                     else:
                         os.makedirs(full_path, exist_ok=True)
                         path_stack.append((level, full_path))
-                        self.log_write(f"[KLASÖR] {name}", "success") # Yeşil
+                        self.log_write(f"[KLASÖR] {name}", "success")
                     created_count += 1
             
             if self.var_git.get(): 
@@ -289,6 +327,11 @@ class App(tk.Tk):
         self.log_area.config(state="normal")
         self.log_area.insert(tk.END, f">> {msg}\n", tag)
         self.log_area.see(tk.END)
+        self.log_area.config(state="disabled")
+
+    def clear_logs(self):
+        self.log_area.config(state="normal")
+        self.log_area.delete("1.0", tk.END)
         self.log_area.config(state="disabled")
 
     def highlight_syntax(self, e=None):
@@ -314,6 +357,7 @@ class App(tk.Tk):
                 self.preset_combo.set("Şablon Yok")
                 if hasattr(self, 'text_area'):
                     self.text_area.delete("1.0", tk.END)
+                    self.add_placeholder()
 
     def load_preset(self, event):
         cat = self.cat_var.get()
@@ -321,6 +365,7 @@ class App(tk.Tk):
         if not hasattr(self, 'text_area'): return
         
         if cat in self.all_presets and name in self.all_presets[cat]:
+            self.remove_placeholder(None) # Şablon yüklenirken placeholder silinir
             content = self.all_presets[cat][name]
             self.text_area.delete("1.0", tk.END)
             self.text_area.insert("1.0", content)
@@ -338,6 +383,8 @@ class App(tk.Tk):
             except: pass
 
     def save_current_as_preset(self):
+        if self.is_placeholder_active: return messagebox.showwarning("Uyarı", "Editör boş, lütfen içerik girin!")
+
         content = self.text_area.get("1.0", tk.END).strip()
         if not content: return messagebox.showwarning("Uyarı", "Editör boş!")
         
@@ -406,10 +453,14 @@ class App(tk.Tk):
             indent = '    ' * (level + 1)
             if root != target_dir: structure_lines.append(f"{'    ' * level}📁 {os.path.basename(root)}")
             for f in files: structure_lines.append(f"{indent}📄 {f}")
+        
+        self.remove_placeholder(None)
         self.text_area.delete("1.0", tk.END); self.text_area.insert("1.0", "\n".join(structure_lines))
         self.highlight_syntax(); self.log_write(f"İçe aktarıldı: {root_name}", "success")
 
-    def clear_editor(self): self.text_area.delete("1.0", tk.END)
+    def clear_editor(self): 
+        self.text_area.delete("1.0", tk.END)
+        self.add_placeholder()
     
     def pick_accent_color(self):
         c = colorchooser.askcolor(color=self.accent_color)[1]
@@ -435,7 +486,7 @@ class App(tk.Tk):
         self.title_bar.bind("<Button-1>", self.click_window)
         self.title_bar.bind("<B1-Motion>", self.drag_window)
         
-        tk.Label(self.title_bar, text="Proje Oluşturucu V1.0", bg=COLOR_BG_HEADER, fg="white", font=FONT_HEADER).pack(side=tk.LEFT, padx=15)
+        tk.Label(self.title_bar, text="Proje Oluşturucu v6.1 (Final Stable)", bg=COLOR_BG_HEADER, fg="white", font=FONT_HEADER).pack(side=tk.LEFT, padx=15)
         self.create_win_btn("✕", self.close_app, COLOR_CLOSE_BG)
         self.create_win_btn("☐", self.toggle_maximize, "#3e3e42")
         self.create_win_btn("_", self.minimize_app, "#3e3e42")
@@ -490,6 +541,12 @@ class App(tk.Tk):
         esc = ttk.Scrollbar(ec, orient="vertical"); esc.pack(side=tk.RIGHT, fill=tk.Y)
         self.text_area = tk.Text(ec, font=FONT_CODE, bg=COLOR_INPUT_BG, fg=COLOR_TEXT_FG, relief="flat", padx=10, pady=10, yscrollcommand=esc.set, wrap="none")
         self.text_area.pack(fill=tk.BOTH, expand=True); esc.config(command=self.text_area.yview)
+        
+        # Placeholder Eventleri
+        self.text_area.bind("<FocusIn>", self.remove_placeholder)
+        self.text_area.bind("<FocusOut>", self.on_focus_out)
+        self.text_area.bind("<Button-1>", self.remove_placeholder)
+        
         self.text_area.bind("<KeyRelease>", self.highlight_syntax)
         self.text_area.bind("<Tab>", self.handle_tab)
         self.text_area.bind("<Return>", self.handle_enter)
@@ -506,6 +563,10 @@ class App(tk.Tk):
         self.log_frame = tk.Frame(self.v_pane, bg=COLOR_BG_MAIN)
         lh = tk.Frame(self.log_frame, bg=COLOR_BG_MAIN); lh.pack(fill=tk.X)
         tk.Label(lh, text="ÇIKTI & SEÇENEKLER", bg=COLOR_BG_MAIN, fg="#666", font=("Segoe UI", 8)).pack(side=tk.LEFT)
+        
+        # ÇÖP KUTUSU (LOG TEMİZLEME)
+        tk.Button(lh, text="🗑️", command=self.clear_logs, bg=COLOR_BG_MAIN, fg=COLOR_TEXT_FG, bd=0, cursor="hand2", font=("Segoe UI", 9)).pack(side=tk.RIGHT, padx=5)
+
         self.var_code = tk.BooleanVar(); self.var_git = tk.BooleanVar(); self.var_docker = tk.BooleanVar()
         ttk.Checkbutton(lh, text="VS Code", variable=self.var_code).pack(side=tk.RIGHT)
         ttk.Checkbutton(lh, text="Git", variable=self.var_git).pack(side=tk.RIGHT, padx=5)
@@ -524,21 +585,39 @@ class App(tk.Tk):
         grip = tk.Label(footer, bg="#444", cursor="size_nw_se"); grip.place(relx=1.0, rely=1.0, anchor="se", width=15, height=15)
         grip.bind("<Button-1>", self.start_resize); grip.bind("<B1-Motion>", self.perform_resize)
 
-        # Kategori Başlangıcını EN SON Yükle (Hata Önlemi)
-        if "Masaüstü Projeleri" in self.all_presets:
-            self.cat_combo.set("Masaüstü Projeleri")
-            self.on_category_change(None)
+    # --- DÜZELTİLEN TOGGLE BUTONLARI (KESİN ÇÖZÜM) ---
+    def toggle_editor(self):
+        if self.show_editor:
+            self.h_pane.forget(self.editor_frame)
+            self.btn_editor.config(text="□", fg=COLOR_ICON_INACTIVE)
+            self.show_editor = False
+        else:
+            if self.show_explorer:
+                self.h_pane.add(self.editor_frame, before=self.explorer_frame)
+            else:
+                self.h_pane.add(self.editor_frame)
+            self.btn_editor.config(text="◧", fg="white")
+            self.show_editor = True
 
-    # --- DİĞER STANDART METODLAR ---
-    def toggle_editor(self): self.toggle_pane(self.editor_frame, self.btn_editor)
-    def toggle_explorer(self): self.toggle_pane(self.explorer_frame, self.btn_explorer)
+    def toggle_explorer(self):
+        if self.show_explorer:
+            self.h_pane.forget(self.explorer_frame)
+            self.btn_explorer.config(text="□", fg=COLOR_ICON_INACTIVE)
+            self.show_explorer = False
+        else:
+            self.h_pane.add(self.explorer_frame)
+            self.btn_explorer.config(text="◨", fg="white")
+            self.show_explorer = True
+
     def toggle_logs(self): 
-        if self.show_logs: self.v_pane.forget(self.log_frame); self.btn_log.config(text="□", fg=COLOR_ICON_INACTIVE); self.show_logs=False
-        else: self.v_pane.add(self.log_frame); self.btn_log.config(text="◪", fg="white"); self.show_logs=True
-    
-    def toggle_pane(self, frame, btn):
-        if frame in self.h_pane.panes(): self.h_pane.forget(frame); btn.config(text="□", fg=COLOR_ICON_INACTIVE)
-        else: self.h_pane.add(frame); btn.config(text="◧" if btn==self.btn_editor else "◨", fg="white")
+        if self.show_logs:
+            self.v_pane.forget(self.log_frame)
+            self.btn_log.config(text="□", fg=COLOR_ICON_INACTIVE)
+            self.show_logs = False
+        else:
+            self.v_pane.add(self.log_frame)
+            self.btn_log.config(text="◪", fg="white")
+            self.show_logs = True
 
     def create_win_btn(self, t, c, h):
         b = tk.Button(self.title_bar, text=t, command=c, bg=COLOR_BG_HEADER, fg="white", bd=0, width=4)
@@ -559,7 +638,7 @@ class App(tk.Tk):
         d = filedialog.askdirectory(); 
         if d: self.path_entry.delete(0,tk.END); self.path_entry.insert(0,d); self.refresh_file_viewer(d)
     
-    # --- EDİTÖR SEÇİMİ (MEVCUT) ---
+    # --- EDİTÖR SEÇİMİ ---
     def get_available_editors(self):
         editors = []
         editor_defs = [
@@ -635,18 +714,19 @@ class App(tk.Tk):
             indent = '    ' * (level + 1)
             if root != target_dir: structure_lines.append(f"{'    ' * level}📁 {os.path.basename(root)}")
             for f in files: structure_lines.append(f"{indent}📄 {f}")
+        
+        self.remove_placeholder(None)
         self.text_area.delete("1.0", tk.END); self.text_area.insert("1.0", "\n".join(structure_lines))
         self.highlight_syntax(); self.log_write(f"İçe aktarıldı: {root_name}", "success")
 
-    def clear_editor(self): self.text_area.delete("1.0", tk.END)
+    def clear_editor(self): 
+        self.text_area.delete("1.0", tk.END)
+        self.add_placeholder()
     
     def pick_accent_color(self):
         c = colorchooser.askcolor(color=self.accent_color)[1]
         if c:
-            self.accent_color = c; self.save_app_config()
-            self.btn_create.config(bg=c)
-            if hasattr(self, 'btn_format'):
-                self.btn_format.config(fg=c)
+            self.accent_color = c; self.save_app_config(); self.btn_create.config(bg=c); self.btn_format.config(fg=c)
             ttk.Style().map("Treeview", background=[('selected', c)])
 
 if __name__ == "__main__":
