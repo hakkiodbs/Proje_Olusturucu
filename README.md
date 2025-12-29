@@ -5,13 +5,10 @@ Günümüzde yazılım geliştirme süreçlerinde Yapay Zeka (ChatGPT, Gemini, C
 
 Örneğin:
 
-Plaintext
+<img width="211" height="177" alt="image" src="https://github.com/user-attachments/assets/2031635d-52e3-41fe-be97-1553e4a4d4bd" />
 
-📂 BenimProjem
-│   ├── main.py
-│   ├── utils.py
-│   └── 📂 assets
-│       └── logo.png
+
+
 🤔 Sorun Nedir?
 Yapay zeka size bu yapıyı metin olarak verir ancak dosyaları sizin yerinize oluşturamaz. Tek tek klasör açmak, dosyaları isimlendirmek ve uzantılarını ayarlamak; özellikle programlama bilgisi az olan kullanıcılar için zaman alıcı ve hata yapmaya müsait, yorucu bir süreçtir.
 
