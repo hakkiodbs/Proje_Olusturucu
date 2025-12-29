@@ -1,4 +1,31 @@
-# Proje Oluşturucu nedir
+🚀 Proje Oluşturucu (Project Creator)
+Yapay Zeka Destekli Projeler İçin Hızlı Başlangıç Asistanı
+
+Günümüzde yazılım geliştirme süreçlerinde Yapay Zeka (ChatGPT, Gemini, Claude vb.) aktif olarak rol almaktadır. İster Web Geliştirme, ister Veri Bilimi, isterse Mobil veya Masaüstü Uygulamaları olsun; yapay zeka modelleri genellikle yapmanız gereken projeyi bir "Dosya Ağacı" (File Tree) formatında metin olarak sunar.
+
+Örneğin:
+
+Plaintext
+
+📂 BenimProjem
+│   ├── main.py
+│   ├── utils.py
+│   └── 📂 assets
+│       └── logo.png
+🤔 Sorun Nedir?
+Yapay zeka size bu yapıyı metin olarak verir ancak dosyaları sizin yerinize oluşturamaz. Tek tek klasör açmak, dosyaları isimlendirmek ve uzantılarını ayarlamak; özellikle programlama bilgisi az olan kullanıcılar için zaman alıcı ve hata yapmaya müsait, yorucu bir süreçtir.
+
+💡 Çözüm: Proje Oluşturucu
+Proje Oluşturucu, yapay zeka modellerinin ürettiği bu metinsel proje yapılarını saniyeler içinde gerçek bir proje klasörüne dönüştüren akıllı bir araçtır.
+
+Kodlama Bilgisi Gerekmez: Karmaşık terminal komutlarıyla uğraşmanıza gerek yok.
+
+Kopyala & Yapıştır: Yapay zekanın verdiği proje ağacını kopyalayın, editöre yapıştırın.
+
+Tek Tıkla Oluştur: "Projeyi Oluştur" butonuna bastığınız anda, tüm klasörleriniz ve dosyalarınız (Python, HTML, CSS, JSON vb.) belirlediğiniz konumda, doğru hiyerarşiyle hazır olur.
+
+Yapay zeka ile proje geliştiren herkes için; fikir aşamasından kodlama aşamasına geçişi ışık hızına çıkaran, kullanıcı dostu bir köprüdür.
+
 
 # 🚀 Proje Oluşturucu v1.0 (Project Creator)
 
