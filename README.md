@@ -49,8 +49,8 @@ Bu projeyi çalıştırmak için bilgisayarınızda **Python 3.x** yüklü olmal
 
 1.  Repoyu klonlayın veya indirin:
     ```bash
-    git clone [https://github.com/kullaniciadi/proje-olusturucu.git](https://github.com/kullaniciadi/proje-olusturucu.git)
-    cd proje-olusturucu
+    git clone [https://github.com/hakkiodbs/Proje_Olusturucu.git](https://github.com/hakkiodbs/Proje_Olusturucu.git)
+    cd Proje_Olusturucu
     ```
 
 2.  Uygulamayı başlatın:
