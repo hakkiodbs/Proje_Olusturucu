@@ -12,7 +12,7 @@ COLOR_BG_MAIN = "#1e1e1e"
 COLOR_BG_HEADER = "#2d2d2d"
 COLOR_INPUT_BG = "#252526"
 COLOR_TEXT_FG = "#d4d4d4"
-COLOR_PLACEHOLDER = "#6e6e6e" # Silik yazı rengi
+COLOR_PLACEHOLDER = "#6e6e6e"
 
 COLOR_BTN_BG = "#007acc"
 COLOR_BTN_HOVER = "#0062a3"
@@ -50,13 +50,13 @@ FILE_ICONS = {
 DEFAULT_FILE_ICON = "📄"
 DEFAULT_FOLDER_ICON = "📁"
 
-# --- HAYALET YAZI (PLACEHOLDER) ---
+# --- HAYALET YAZI ---
 PLACEHOLDER_TEXT = """Buraya proje yapısını yazın veya yapıştırın...
 
 Örnek Kullanım:
 AnaKlasor
     AltKlasor
-        dosya.txt
+        dosya.txt  # Yorumlar otomatik silinir!
 
 Nasıl Kullanılır?
 1. Kategori ve Şablon seçerek başlayabilirsiniz.
@@ -184,32 +184,27 @@ class App(tk.Tk):
         self.accent_color = "#007acc"
         self.is_placeholder_active = False 
 
-        self.all_presets = DEFAULT_PRESETS.copy()
-        self.load_custom_presets_from_file()
-        self.load_app_config() 
-        
-        # Panellerin durumunu takip etmek için değişkenler
+        # --- PANEL DURUM DEĞİŞKENLERİ (Sorunun Kesin Çözümü) ---
         self.show_editor = True
         self.show_explorer = True
         self.show_logs = True
         self.show_top_pane = True
 
+        self.all_presets = DEFAULT_PRESETS.copy()
+        self.load_custom_presets_from_file()
+        self.load_app_config() 
+        
         self.setup_styles()
         self.setup_ui()
         self.bind("<Map>", self.on_restore)
         
         target = self.path_entry.get() if self.path_entry.get() else os.getcwd()
         self.refresh_file_viewer(target)
-        
-        # BAŞLANGIÇTA OTOMATİK ŞABLON YÜKLEMİYORUZ
-        # Sadece placeholder gösteriyoruz.
         self.add_placeholder()
 
-    # --- PLACEHOLDER (HAYALET YAZI) MANTIĞI ---
+    # --- PLACEHOLDER ---
     def add_placeholder(self):
-        # Eğer içerik doluysa placeholder ekleme
         if self.text_area.get("1.0", "end-1c").strip(): return
-        
         self.text_area.delete("1.0", tk.END)
         self.text_area.insert("1.0", PLACEHOLDER_TEXT)
         self.text_area.config(fg=COLOR_PLACEHOLDER)
@@ -233,8 +228,13 @@ class App(tk.Tk):
         lines = [l for l in raw_text.split('\n') if l.strip()]
         formatted = []
         for line in lines:
-            clean = re.sub(r'[│├└─\t]+', '', line).strip()
+            # 1. Yorumları Temizle
+            clean = re.sub(r'\s*#.*$', '', line)
+            # 2. Ağaç karakterlerini temizle
+            clean = re.sub(r'[│├└─\t]+', '', clean).strip()
+            # 3. İkonları temizle
             clean = re.sub(r'[📁📂📄🐍🌐🎨📜⚙️📝🖼️🚀🐙🔒🗄️]', '', clean).strip()
+            
             if not clean: continue
             
             orig_indent = len(re.match(r'^(\s*)', line).group(1))
@@ -280,10 +280,17 @@ class App(tk.Tk):
         try:
             for line in lines:
                 if not line.strip(): continue
-                clean_line = line.replace('│', ' ').replace('├', ' ').replace('└', ' ').replace('─', ' ')
+                
+                # Yorum Temizliği
+                line_no_comment = re.sub(r'\s*#.*$', '', line)
+                if not line_no_comment.strip(): continue
+
+                clean_line = line_no_comment.replace('│', ' ').replace('├', ' ').replace('└', ' ').replace('─', ' ')
                 level = len(re.match(r'^(\s*)', clean_line).group(1)) // 4
-                name = re.sub(r'[│├└─\s\t]+', '', line).strip()
+                
+                name = re.sub(r'[│├└─\s\t]+', '', line_no_comment).strip()
                 name = re.sub(r'[📁📂📄🐍🌐🎨📜⚙️📝🖼️🚀🐙🔒🗄️]', '', name).strip()
+                
                 if not name: continue
 
                 while path_stack and path_stack[-1][0] >= level: path_stack.pop()
@@ -365,7 +372,7 @@ class App(tk.Tk):
         if not hasattr(self, 'text_area'): return
         
         if cat in self.all_presets and name in self.all_presets[cat]:
-            self.remove_placeholder(None) # Şablon yüklenirken placeholder silinir
+            self.remove_placeholder(None)
             content = self.all_presets[cat][name]
             self.text_area.delete("1.0", tk.END)
             self.text_area.insert("1.0", content)
@@ -383,8 +390,7 @@ class App(tk.Tk):
             except: pass
 
     def save_current_as_preset(self):
-        if self.is_placeholder_active: return messagebox.showwarning("Uyarı", "Editör boş, lütfen içerik girin!")
-
+        if self.is_placeholder_active: return messagebox.showwarning("Uyarı", "Editör boş!")
         content = self.text_area.get("1.0", tk.END).strip()
         if not content: return messagebox.showwarning("Uyarı", "Editör boş!")
         
@@ -465,10 +471,7 @@ class App(tk.Tk):
     def pick_accent_color(self):
         c = colorchooser.askcolor(color=self.accent_color)[1]
         if c:
-            self.accent_color = c; self.save_app_config()
-            self.btn_create.config(bg=c)
-            if hasattr(self, 'btn_format'):
-                self.btn_format.config(fg=c)
+            self.accent_color = c; self.save_app_config(); self.btn_create.config(bg=c); self.btn_format.config(fg=c)
             ttk.Style().map("Treeview", background=[('selected', c)])
 
     # --- UI KURULUMU ---
@@ -486,7 +489,7 @@ class App(tk.Tk):
         self.title_bar.bind("<Button-1>", self.click_window)
         self.title_bar.bind("<B1-Motion>", self.drag_window)
         
-        tk.Label(self.title_bar, text="Proje Oluşturucu v6.1 (Final Stable)", bg=COLOR_BG_HEADER, fg="white", font=FONT_HEADER).pack(side=tk.LEFT, padx=15)
+        tk.Label(self.title_bar, text="Proje Oluşturucu v6.3 (Final Stable)", bg=COLOR_BG_HEADER, fg="white", font=FONT_HEADER).pack(side=tk.LEFT, padx=15)
         self.create_win_btn("✕", self.close_app, COLOR_CLOSE_BG)
         self.create_win_btn("☐", self.toggle_maximize, "#3e3e42")
         self.create_win_btn("_", self.minimize_app, "#3e3e42")
@@ -585,7 +588,12 @@ class App(tk.Tk):
         grip = tk.Label(footer, bg="#444", cursor="size_nw_se"); grip.place(relx=1.0, rely=1.0, anchor="se", width=15, height=15)
         grip.bind("<Button-1>", self.start_resize); grip.bind("<B1-Motion>", self.perform_resize)
 
-    # --- DÜZELTİLEN TOGGLE BUTONLARI (KESİN ÇÖZÜM) ---
+        # Kategori Başlangıcını EN SON Yükle (Hata Önlemi)
+        if "Masaüstü Projeleri" in self.all_presets:
+            self.cat_combo.set("Masaüstü Projeleri")
+            self.on_category_change(None)
+
+    # --- TOGGLE BUTONLARI (KESİN ÇÖZÜM) ---
     def toggle_editor(self):
         if self.show_editor:
             self.h_pane.forget(self.editor_frame)
@@ -638,7 +646,7 @@ class App(tk.Tk):
         d = filedialog.askdirectory(); 
         if d: self.path_entry.delete(0,tk.END); self.path_entry.insert(0,d); self.refresh_file_viewer(d)
     
-    # --- EDİTÖR SEÇİMİ ---
+    # --- EDİTÖR SEÇİMİ (MEVCUT) ---
     def get_available_editors(self):
         editors = []
         editor_defs = [
