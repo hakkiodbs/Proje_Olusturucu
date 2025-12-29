@@ -489,7 +489,7 @@ class App(tk.Tk):
         self.title_bar.bind("<Button-1>", self.click_window)
         self.title_bar.bind("<B1-Motion>", self.drag_window)
         
-        tk.Label(self.title_bar, text="Proje Oluşturucu V1.0", bg=COLOR_BG_HEADER, fg="white", font=FONT_HEADER).pack(side=tk.LEFT, padx=15)
+        tk.Label(self.title_bar, text="Proje Oluşturucu v1.0", bg=COLOR_BG_HEADER, fg="white", font=FONT_HEADER).pack(side=tk.LEFT, padx=15)
         self.create_win_btn("✕", self.close_app, COLOR_CLOSE_BG)
         self.create_win_btn("☐", self.toggle_maximize, "#3e3e42")
         self.create_win_btn("_", self.minimize_app, "#3e3e42")
